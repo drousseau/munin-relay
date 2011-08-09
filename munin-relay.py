@@ -13,7 +13,7 @@ from twisted.internet import reactor
 
 config = { 'hosts': 
         [
-            { 'hostname': 'amy.in.lee-loo.net', 'hostaddr': 'amy.in.lee-loo.net', 'port': '4949' },
+            { 'hostname': 'amy.relayed.in.lee-loo.net', 'hostaddr': 'amy.in.lee-loo.net', 'port': '4949' },
             { 'hostname': 'shawan.in.lee-loo.net', 'hostaddr': '10.2.5.2', 'port': '4949' }
         ]
         }
@@ -55,12 +55,16 @@ class MuninRelay(LineReceiver):
     _re_list = re.compile("^list +(.+) *$", re.I)
     _re_fetch = re.compile("^fetch +([0-9a-f]{32})_(.+) *$", re.I)
     _re_config = re.compile("^config +([0-9a-f]{32})_(.+) *$", re.I)
+    _re_cap = re.compile("^cap +(.+) *$", re.I)
     _re_comment = re.compile("^#")
+    _re_greeting = re.compile("^# (lrrd|munin) (.+) on (.+)$", re.I)
+
     _clients = {}
     _c_factory = None
     _last_command = {}
     _host2hash = {}
     _hash2host = {}
+    _cap_multigraph = False
 
     def _get_host_from_hash(self, h):
         hostname = ''
@@ -104,15 +108,26 @@ class MuninRelay(LineReceiver):
         
     def _handle_line(self, host, line):
         line = line.rstrip()
+        hostname = host['hostname']
 
         if (line == ''):
             return
 
+        m_greeting = self._re_greeting.match(line)
+        if (m_greeting != None):
+            if (self._cap_multigraph):
+                # announce cap multigraph, if we received it from server
+                self._clients[hostname].snedLine("cap multigraph")
+            return
         m_comment = self._re_comment.match(line)
         if (m_comment != None):
             return
 
-        hostname = host['hostname']
+        # ignore reply for cap
+        m_cap = self._re_cap.match(line)
+        if (m_cap != None):
+            return
+
 
         if (self._last_command[hostname] == 'list'):
             self._last_command[hostname] = None
@@ -155,17 +170,29 @@ class MuninRelay(LineReceiver):
             self.sendLine('.')
         elif (data == 'quit'):
             self.transport.loseConnection()
+        elif (data == ''):
+            print "empty line, do nothing"
         else:
             m_list = self._re_list.match(data)
             m_fetch = self._re_fetch.match(data)
             m_config = self._re_config.match(data)
+            m_cap = self._re_cap.match(data)
             print m_list, m_fetch, m_config
             if (m_list != None):
                 hostname = m_list.group(1)
                 if ( not (self._clients.has_key(hostname)) ):
                     self._open_host(hostname)
                 reactor.callLater (0.1, self._send_line, hostname, 'list')
-                self.sendLine("# fetch list for " + m_list.group(1))
+#                self.sendLine("# fetch list for " + m_list.group(1))
+
+            if (m_cap != None):
+                cap_name = m_cap.group(1)
+                print "cap : '" + cap_name + "'"
+                if (cap_name == 'multigraph'):
+                    self._cap_multigraph = True
+                    self.sendLine("cap multigraph")
+                else:
+                    self.sendLine("# Unknown command")
 
             if (m_fetch != None):
                 hosthash = m_fetch.group(1)
@@ -191,6 +218,8 @@ class MuninRelay(LineReceiver):
 
     def dataReceived(self, data):
         print "received : ", data
+        data = data.replace("\r\n", "\n")
+        data = data.replace("\r", "\n")
         for l in data.split("\n"):
             self._do_line(l)
 
