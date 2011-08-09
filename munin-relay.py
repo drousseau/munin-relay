@@ -146,14 +146,9 @@ class MuninRelay(LineReceiver):
         """
         # print dir(self.transport)
         print "Connection received from : ", self.transport.client[0]
-        self.sendLine("# welcome to munin-relay")
+        self.sendLine("# munin node at munin-relay")
 
-    def lineReceived(self, data):
-        """
-        As soon as any data is received, write it back.
-        """
-        #self.transport.write(data)
-        print "received : ", data
+    def _do_line(self, data):
         if (data == 'nodes'):
             for h in self.factory.cfg['hosts']:
                 self.sendLine(h['hostname'])
@@ -193,6 +188,11 @@ class MuninRelay(LineReceiver):
                         self._open_host(hostname)
                     reactor.callLater (0.1, self._send_line, hostname, 'config', plugin)
                     self.sendLine("# config plugin " + plugin + " for " + hostname)
+
+    def dataReceived(self, data):
+        print "received : ", data
+        for l in data.split("\n"):
+            self._do_line(l)
 
 
 class MuninRelayFactory(Factory):
