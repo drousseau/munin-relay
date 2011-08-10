@@ -40,6 +40,8 @@ class MuninClient(LineReceiver):
 
     def dataReceived(self, data):
         print "client data receive : ", data
+        data = data.replace("\r\n", "\n")
+        data = data.replace("\r", "\n")
         for l in (data.split("\n")):
             self._f_parent._handle_line(self._host, l)
 
@@ -109,8 +111,10 @@ class MuninRelay(LineReceiver):
     def _handle_line(self, host, line):
         line = line.rstrip()
         hostname = host['hostname']
+        print "handle line '" + line + "' for " + hostname
 
         if (line == ''):
+            print "empty line, do nothing"
             return
 
         m_greeting = self._re_greeting.match(line)
@@ -149,6 +153,7 @@ class MuninRelay(LineReceiver):
             if (line == '.'):
                 print "end of config"
                 self._last_command[hostname] = None
+            print "sending '" + line + "'"
             self.sendLine(line)
             return
             
@@ -161,6 +166,7 @@ class MuninRelay(LineReceiver):
         """
         # print dir(self.transport)
         print "Connection received from : ", self.transport.client[0]
+        self.delimiter = "\x0a"
         self.sendLine("# munin node at munin-relay")
 
     def _do_line(self, data):
@@ -203,7 +209,7 @@ class MuninRelay(LineReceiver):
                     if ( not (self._clients.has_key(hostname)) ):
                         self._open_host(hostname)
                     reactor.callLater (0.1, self._send_line, hostname, 'fetch', plugin)
-                    self.sendLine("# fetch plugin " + plugin + " for " + hostname)
+#                    self.sendLine("# fetch plugin " + plugin + " for " + hostname)
 
             if (m_config != None):
                 hosthash = m_config.group(1)
@@ -214,7 +220,7 @@ class MuninRelay(LineReceiver):
                     if ( not (self._clients.has_key(hostname)) ):
                         self._open_host(hostname)
                     reactor.callLater (0.1, self._send_line, hostname, 'config', plugin)
-                    self.sendLine("# config plugin " + plugin + " for " + hostname)
+#                    self.sendLine("# config plugin " + plugin + " for " + hostname)
 
     def dataReceived(self, data):
         print "received : ", data
