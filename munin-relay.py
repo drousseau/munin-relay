@@ -136,6 +136,9 @@ class MuninRelay(LineReceiver):
         if (arg != ''):
             line = line + ' ' + arg
         print "send line : '" + line + "' to " + hostname
+        if ( not self._clients.has_key(hostname)):
+          self.sendLine('# error: unknow host ' + hostname)
+          return
         self._clients[hostname].sendLine(line)
         
     def _handle_line(self, host, line):
