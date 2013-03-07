@@ -5,18 +5,35 @@
 
 import re
 import time
+import sys
 import md5
+import ConfigParser
 from twisted.internet.protocol import Factory
 from twisted.internet.protocol import ClientFactory
 from twisted.protocols.basic import LineReceiver
 from twisted.internet import reactor
+from ConfigParser import SafeConfigParser
 
-config = { 'hosts': 
-        [
-            { 'hostname': 'amy.relayed.in.lee-loo.net', 'hostaddr': 'amy.in.lee-loo.net', 'port': '4949' },
-            { 'hostname': 'shawan.in.lee-loo.net', 'hostaddr': '10.2.5.2', 'port': '4949' }
-        ]
-        }
+# Read the configuration file
+config = {'hosts': [] }
+ccfg = SafeConfigParser()
+ccfg.read([ 'munin-relay.ini', '/etc/munin/munin-relay.ini'])
+for section_name in ccfg.sections():
+  if ( section_name == 'global' ):
+    config['allowed_ip'] = ccfg.get('global', 'allowed_ip').split(',')  
+  else:
+    tmp = {}
+    for op in ccfg.options(section_name):
+      tmp[op]=ccfg.get(section_name,op)
+    config['hosts'].append( tmp )
+
+if ( not config.has_key('allowed_ip') or len(config['allowed_ip']) == 0 ):
+  print "Problem with configuration files, no one is allowed"
+  sys.exit()
+
+# Now the configuration is in config 
+print repr(config)
+sys.exit()
 
 class MuninClient(LineReceiver):
     _host = None
@@ -67,6 +84,7 @@ class MuninRelay(LineReceiver):
     _host2hash = {}
     _hash2host = {}
     _cap_multigraph = False
+    _help_line = "# Allowed commands: nodes, list, config, fetch, version or quit"
 
     def _get_host_from_hash(self, h):
         hostname = ''
@@ -114,7 +132,7 @@ class MuninRelay(LineReceiver):
         print "handle line '" + line + "' for " + hostname
 
         if (line == ''):
-            print "empty line, do nothing"
+            print "empty line, do nothing - handle line"
             return
 
         m_greeting = self._re_greeting.match(line)
@@ -158,7 +176,7 @@ class MuninRelay(LineReceiver):
             return
             
 
-        self.sendLine("line recevied for command '" + self._last_command[hostname] + "' from " + host['hostname'] + " : " + line)
+        self.sendLine("line received for command '" + self._last_command[hostname] + "' from " + host['hostname'] + " : " + line)
 
     def connectionMade(self):
         """
@@ -166,6 +184,10 @@ class MuninRelay(LineReceiver):
         """
         # print dir(self.transport)
         print "Connection received from : ", self.transport.client[0]
+        if ( not self.transport.client[0] in self.factory.cfg['allowed_ip'] ):
+          self.sendLine("# Not allowed")
+          self.transport.loseConnection()
+
         self.delimiter = "\x0a"
         self.sendLine("# munin node at munin-relay")
 
@@ -174,10 +196,15 @@ class MuninRelay(LineReceiver):
             for h in self.factory.cfg['hosts']:
                 self.sendLine(h['hostname'])
             self.sendLine('.')
+        elif (data == 'version'):
+            self.sendLine("# munin-relay in development")
+        elif (data == 'list'):
+            self.sendLine("# missing node name after list.")
+            self.sendLine("# Usage: list node_name")
         elif (data == 'quit'):
             self.transport.loseConnection()
         elif (data == ''):
-            print "empty line, do nothing"
+            print "empty line, do nothing - do line"
         else:
             m_list = self._re_list.match(data)
             m_fetch = self._re_fetch.match(data)
@@ -186,7 +213,9 @@ class MuninRelay(LineReceiver):
             print m_list, m_fetch, m_config
             if (m_list != None):
                 hostname = m_list.group(1)
-                if ( not (self._clients.has_key(hostname)) ):
+                
+
+                if ( not (self._clients.has_key(hostname)) ): # Socket exist ?
                     self._open_host(hostname)
                 reactor.callLater (0.1, self._send_line, hostname, 'list')
 #                self.sendLine("# fetch list for " + m_list.group(1))
@@ -198,7 +227,7 @@ class MuninRelay(LineReceiver):
                     self._cap_multigraph = True
                     self.sendLine("cap multigraph")
                 else:
-                    self.sendLine("# Unknown command")
+                    self.sendLine(self._help_line)
 
             if (m_fetch != None):
                 hosthash = m_fetch.group(1)
@@ -226,8 +255,12 @@ class MuninRelay(LineReceiver):
         print "received : ", data
         data = data.replace("\r\n", "\n")
         data = data.replace("\r", "\n")
+        data = data.replace("\n\n", "\n")
         for l in data.split("\n"):
-            self._do_line(l)
+          if ( l == ''): # Empty line
+            self.sendLine(self._help_line)
+            break
+          self._do_line(l)
 
 
 class MuninRelayFactory(Factory):
