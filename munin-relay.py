@@ -14,13 +14,25 @@ from twisted.protocols.basic import LineReceiver
 from twisted.internet import reactor
 from ConfigParser import SafeConfigParser
 
+# Default conf
+config = {
+  'hosts': [],
+  'allowed_ip': ['127.0.0.1'],
+  'port': '4950',
+  'bind_address': '10.23.23.90',
+ }
+
 # Read the configuration file
-config = {'hosts': [] }
 ccfg = SafeConfigParser()
 ccfg.read([ 'munin-relay.ini', '/etc/munin/munin-relay.ini'])
 for section_name in ccfg.sections():
   if ( section_name == 'global' ):
-    config['allowed_ip'] = ccfg.get('global', 'allowed_ip').split(',')  
+    for i in ['allowed_ip', 'port', 'bind_address']:
+      if i in ccfg.options(section_name):
+        if ( i in ['allowed_ip'] ):
+          config[i] = ccfg.get('global', i).split(',')
+        else:
+          config[i] = ccfg.get('global', i)
   else:
     tmp = {}
     for op in ccfg.options(section_name):
@@ -184,7 +196,7 @@ class MuninRelay(LineReceiver):
         # print dir(self.transport)
         print "Connection received from : ", self.transport.client[0]
         if ( not self.transport.client[0] in self.factory.cfg['allowed_ip'] ):
-          self.sendLine("# Not allowed")
+          self.sendLine("# " + self.transport.client[0] + " is not allowed")
           self.transport.loseConnection()
 
         self.delimiter = "\x0a"
@@ -271,7 +283,7 @@ class MuninRelayFactory(Factory):
 
 def main():
     f = MuninRelayFactory(config)
-    reactor.listenTCP(4950, f)
+    reactor.listenTCP(int(config['port']), f, 50, config['bind_address'])
     reactor.run()
 
 if __name__ == '__main__':

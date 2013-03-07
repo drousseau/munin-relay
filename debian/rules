@@ -41,8 +41,8 @@ install: build
 
 # Add here commands to install the package into debian/tmp.
 # conffiles
-	install -o root -g root -m0755 munin-relay debian/munin-relay/usr/sbin/
-	install -o root -g root -m0644 munin-relay.ini.example debian/munin-relay/etc/munin/
+	install -o root -g root -m0755 munin-relay.py debian/munin-relay/usr/bin/munin-relay
+	install -o root -g root -m0644 munin-relay.ini debian/munin-relay/etc/munin/
 
 # This single target is used to build all the packages, all at once, or
 # one at a time. So keep in mind: any options passed to commands here will

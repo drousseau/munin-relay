@@ -1,4 +1,4 @@
-#! /bin/sh
+#! /bin/bash
 #
 ### BEGIN INIT INFO
 # Provides:          munin-relay
@@ -13,7 +13,7 @@
 
 
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
-DAEMON=/usr/sbin/munin-relay
+DAEMON=/usr/bin/munin-relay
 NAME=munin-relay
 DESC=munin-relay
 PIDFILE=/var/run/munin-relay.pid
@@ -29,20 +29,32 @@ fi
 
 set -e
 
+is_not_alive() {
+  pid="$( test -e "$PIDFILE" && cat "$PIDFILE")"
+  if [ ! -z "$pid" ] ; then
+    if [ -d /proc/$pid ] ; then
+      grep -q $DAEMON /proc/$pid/cmdline && return 0
+    fi
+  fi
+  return 1
+}
+
 case "$1" in
   start)
         # FIXME: made the binary fork himself
-        pid="$( test -e "$PIDFILE" && cat "$PIDFILE")"
-        if [ ! -z "$pid" ] ; then
-          if [ -d /proc/$pid ] ; then
-            grep -q $DAEMON /proc/$pid/cmdline && ( echo "Error: process still running" ; exit 1)
-          fi
+        if ( is_not_alive ) ; then
+          echo "Seems to be actualy running"
+          exit 1
         fi
         log_daemon_msg "Starting $DESC" "$NAME"
         start-stop-daemon --start --user nobody --group nogroup --background --make-pidfile --pidfile $PIDFILE --name $NAME --exec $DAEMON
         log_end_msg $?
         ;;
   stop)
+        if ( ! is_not_alive ) ; then
+          echo "Seems to not be running"
+          exit 1
+        fi
         log_daemon_msg "Stopping $DESC" "$NAME"
         start-stop-daemon --stop --pidfile $PIDFILE -m $NAME --quiet
         log_end_msg $?
