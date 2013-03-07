@@ -1,7 +1,7 @@
 Source: munin-relay
 Section: net
 Priority: optional
-Maintainer: Dominique Rousseau <domi@nnx.com>
+Maintainer: Dominique Rousseau <d.rousseau@nnx.com>
 Build-Depends-Indep: python-twisted (>= 12)
 Standards-Version: 3.7.2.0
 
