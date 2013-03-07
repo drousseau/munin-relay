@@ -1,0 +1,13 @@
+Source: munin-relay
+Section: net
+Priority: optional
+Maintainer: Dominique Rousseau <domi@nnx.com>
+Build-Depends-Indep: python-twisted (>= 12)
+Standards-Version: 3.7.2.0
+
+Package: munin-relay
+Architecture: all
+Depends: python-twisted (>= 12)
+Description: Munin relay, so sexy
+Description-fr: Relai munin
+ Relai munin, très sexy
