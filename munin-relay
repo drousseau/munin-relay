@@ -32,8 +32,7 @@ if ( not config.has_key('allowed_ip') or len(config['allowed_ip']) == 0 ):
   sys.exit()
 
 # Now the configuration is in config 
-print repr(config)
-sys.exit()
+#print repr(config)
 
 class MuninClient(LineReceiver):
     _host = None
