@@ -44,7 +44,8 @@ if ( not config.has_key('allowed_ip') or len(config['allowed_ip']) == 0 ):
   sys.exit()
 
 # Now the configuration is in config 
-#print repr(config)
+# print repr(config)
+# sys.exit()
 
 class MuninClient(LineReceiver):
     _host = None
@@ -267,7 +268,8 @@ class MuninRelay(LineReceiver):
         data = data.replace("\r\n", "\n")
         data = data.replace("\r", "\n")
         data = data.replace("\n\n", "\n")
-        for l in data.split("\n"):
+        # [:-1] because the split gives an empty value after the final \n from command list
+        for l in data.split("\n")[:-1]:
           if ( l == ''): # Empty line
             self.sendLine(self._help_line)
             break
