@@ -34,7 +34,7 @@ for section_name in ccfg.sections():
         else:
           config[i] = ccfg.get('global', i)
   else:
-    tmp = {}
+    tmp = { 'port': '4949' }
     for op in ccfg.options(section_name):
       tmp[op]=ccfg.get(section_name,op)
     config['hosts'].append( tmp )
