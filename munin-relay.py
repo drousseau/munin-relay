@@ -3,11 +3,15 @@
 
 # loosely based on Twisted Matrix Laboratories examples
 
+
 import re
+import os
 import time
 import sys
+import syslog
 import md5
 import ConfigParser
+import argparse
 from twisted.internet.protocol import Factory
 from twisted.internet.protocol import ClientFactory
 from twisted.protocols.basic import LineReceiver
@@ -289,8 +293,48 @@ class MuninRelayFactory(Factory):
 def main():
     f = MuninRelayFactory(config)
     reactor.listenTCP(int(config['port']), f, 50, config['bind_address'])
+    if ( args.pid_file != '' ):
+      try:
+        print args.pid_file
+        ff = open(args.pid_file, "w")
+        ff.write(str(os.getpid()))
+        ff.close()
+      except :
+        print "Error writing on "+args.pid_file
     reactor.run()
 
-if __name__ == '__main__':
-    main()
 
+parser = argparse.ArgumentParser(description='Munin relay.')
+parser.add_argument('--debug', action='store_true', default=False, dest='debugme', help='do not detach process. Use: --debug 0 or --debug 1')
+parser.add_argument('--pid', action='store', default='', dest='pid_file', help='PID File')
+
+args=parser.parse_args()
+
+# Background process
+if (args.debugme == True):
+  print "Debug mode: do not detach"
+  main()
+  os._exit (0)
+else:
+  try:
+      try:
+          pid = os.fork()
+      except OSError, e:
+          syslog.syslog ("Failed to daemonize")
+          raise Exception, "%s [%d]" % (e.strerror, e.errno)
+
+      if (pid == 0):  # the daemon child
+        try:
+           os.setsid()   # set own session
+           os.chdir ("/tmp")
+           main ()
+        except:
+          print "Error: failed to launch munin-relay"
+          os._exit (2)
+      else:       # the parent
+        syslog.syslog ("Launch munin-relay #"+str(pid))
+        os._exit (0)
+
+  except KeyboardInterrupt:
+      print "Interrupt"
+      os._exit (0)
