@@ -41,13 +41,8 @@ is_not_alive() {
 
 case "$1" in
   start)
-        # FIXME: made the binary fork himself
-        if ( is_not_alive ) ; then
-          echo "Seems to be actualy running"
-          exit 1
-        fi
         log_daemon_msg "Starting $DESC" "$NAME"
-        start-stop-daemon --start --user nobody --group nogroup --background --make-pidfile --pidfile $PIDFILE --name $NAME --exec $DAEMON
+        start-stop-daemon --start --user nobody --group nogroup --name $NAME --exec $DAEMON -- --pid $PIDFILE
         log_end_msg $?
         ;;
   stop)

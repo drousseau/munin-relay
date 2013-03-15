@@ -295,7 +295,6 @@ def main():
     reactor.listenTCP(int(config['port']), f, 50, config['bind_address'])
     if ( args.pid_file != '' ):
       try:
-        print args.pid_file
         ff = open(args.pid_file, "w")
         ff.write(str(os.getpid()))
         ff.close()
@@ -305,8 +304,8 @@ def main():
 
 
 parser = argparse.ArgumentParser(description='Munin relay.')
-parser.add_argument('--debug', action='store_true', default=False, dest='debugme', help='do not detach process. Use: --debug 0 or --debug 1')
-parser.add_argument('--pid', action='store', default='', dest='pid_file', help='PID File')
+parser.add_argument('--debug', action='store_true', default=False, dest='debugme', help='do not detach process')
+parser.add_argument('--pid', action='store', default='', dest='pid_file', help='Specify a PID file')
 
 args=parser.parse_args()
 
