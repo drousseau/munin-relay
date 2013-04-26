@@ -298,7 +298,6 @@ def main():
         print "Missing bind_address parameter in global config"
         sys.exit(-1)
     reactor.listenTCP(int(config['port']), f, 50, config['bind_address'])
-    reactor.listenTCP(int(config['port']), f, 50, config['bind_address'])
     if ( args.pid_file != '' ):
       try:
         ff = open(args.pid_file, "w")
@@ -328,6 +327,7 @@ else:
           syslog.syslog ("Failed to daemonize")
           raise Exception, "%s [%d]" % (e.strerror, e.errno)
 
+      orig_stderr = sys.stderr
       if (pid == 0):  # the daemon child
         try:
            os.setsid()   # set own session
@@ -337,7 +337,7 @@ else:
            sys.stderr = null
            main()
         except Exception, e:
-          print "Error: failed to launch munin-relay :", e
+          print >>orig_stderr, "Error: failed to launch munin-relay :", e
           sys.exit (2)
       else:       # the parent
         syslog.syslog ("Launch munin-relay #"+str(pid))
