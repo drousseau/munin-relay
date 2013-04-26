@@ -332,6 +332,9 @@ else:
         try:
            os.setsid()   # set own session
            os.chdir("/tmp")
+           null = open('/dev/null', 'a')
+           sys.stdout = null
+           sys.stderr = null
            main()
         except Exception, e:
           print "Error: failed to launch munin-relay :", e
