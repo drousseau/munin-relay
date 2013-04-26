@@ -7,7 +7,7 @@ Standards-Version: 3.7.2.0
 
 Package: munin-relay
 Architecture: all
-Depends: python-twisted (>= 10)
+Depends: python-twisted (>= 10), python-crypto, python-argparse
 Description: Sometimes you want to retrieve information from non directly 
   reachable networks. You have to proxy them through another host that
   acts as a gateway. Munin-relay allow you to do that
