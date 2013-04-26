@@ -4,11 +4,10 @@
 # loosely based on Twisted Matrix Laboratories examples
 
 
-import re
-import os
+import os, sys
 import time
-import sys
 import syslog
+import re
 import md5
 import ConfigParser
 import argparse
@@ -23,7 +22,7 @@ config = {
   'hosts': [],
   'allowed_ip': ['127.0.0.1'],
   'port': '4950',
-  'bind_address': '10.23.23.90',
+  'bind_address': '127.0.0.1',
  }
 
 # Read the configuration file
@@ -292,14 +291,21 @@ class MuninRelayFactory(Factory):
 
 def main():
     f = MuninRelayFactory(config)
+    if ( not config.has_key('port') or (config['port'] == '') ):
+        print "Missing port parameter in global config"
+        sys.exit(-1)
+    if ( not config.has_key('bind_address') or (config['bind_address'] == '') ):
+        print "Missing bind_address parameter in global config"
+        sys.exit(-1)
+    reactor.listenTCP(int(config['port']), f, 50, config['bind_address'])
     reactor.listenTCP(int(config['port']), f, 50, config['bind_address'])
     if ( args.pid_file != '' ):
       try:
         ff = open(args.pid_file, "w")
         ff.write(str(os.getpid()))
         ff.close()
-      except :
-        print "Error writing on "+args.pid_file
+      except Exception, e:
+        print "Error writing in %s :" % args.pid_file, e
     reactor.run()
 
 
@@ -313,7 +319,7 @@ args=parser.parse_args()
 if (args.debugme == True):
   print "Debug mode: do not detach"
   main()
-  os._exit (0)
+  sys.exit (0)
 else:
   try:
       try:
@@ -325,15 +331,16 @@ else:
       if (pid == 0):  # the daemon child
         try:
            os.setsid()   # set own session
-           os.chdir ("/tmp")
-           main ()
-        except:
-          print "Error: failed to launch munin-relay"
-          os._exit (2)
+           os.chdir("/tmp")
+           main()
+        except Exception, e:
+          print "Error: failed to launch munin-relay :", e
+          sys.exit (2)
       else:       # the parent
         syslog.syslog ("Launch munin-relay #"+str(pid))
-        os._exit (0)
+        sys.exit (0)
 
   except KeyboardInterrupt:
       print "Interrupt"
-      os._exit (0)
+      sys.exit (0)
+
