@@ -55,6 +55,7 @@ class MuninClient(LineReceiver):
     _f_parent = None
 
     def connectionMade(self):
+        self.delimiter = "\n"
         print "new connect : ", dir(self)
         print dir(self.transport)
         print "addr:", self.transport.addr
@@ -70,12 +71,10 @@ class MuninClient(LineReceiver):
         client = self.transport.addr
         del self._f_parent._clients[self._host['hostname']]
 
-    def dataReceived(self, data):
-        print "client data receive : ", data
-        data = data.replace("\r\n", "\n")
-        data = data.replace("\r", "\n")
-        for l in (data.split("\n")):
-            self._f_parent._handle_line(self._host, l)
+    def lineReceived(self, l):
+        print "client data receive : ", l
+        l = l.replace("\r", "")
+        self._f_parent._handle_line(self._host, l)
 
 class MuninClientFactory(ClientFactory):
     protocol = MuninClient
