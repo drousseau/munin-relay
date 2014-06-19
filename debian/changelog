@@ -4,7 +4,7 @@ munin-relay (0.0.2) experimental; urgency=low
   * more general default config
   * be more verbose when failing to start
 
- -- Dominique Rousseau <d.rousseau@nnx.com>  Fri, 26 Apr 2013, 17:41:42 +0200
+ -- Dominique Rousseau <d.rousseau@nnx.com>  Fri, 26 Apr 2013 17:41:42 +0200
 
 munin-relay (0.0.1) experimental; urgency=low
 
