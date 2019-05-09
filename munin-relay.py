@@ -25,31 +25,6 @@ config = {
   'bind_address': '127.0.0.1',
  }
 
-# Read the configuration file
-ccfg = SafeConfigParser()
-ccfg.read([ 'munin-relay.ini', '/etc/munin/munin-relay.ini'])
-for section_name in ccfg.sections():
-  if ( section_name == 'global' ):
-    for i in ['allowed_ip', 'port', 'bind_address']:
-      if i in ccfg.options(section_name):
-        if ( i in ['allowed_ip'] ):
-          config[i] = ccfg.get('global', i).split(',')
-        else:
-          config[i] = ccfg.get('global', i)
-  else:
-    tmp = { 'port': '4949' }
-    for op in ccfg.options(section_name):
-      tmp[op]=ccfg.get(section_name,op)
-    config['hosts'].append( tmp )
-
-if ( not config.has_key('allowed_ip') or len(config['allowed_ip']) == 0 ):
-  print "Problem with configuration files, no one is allowed"
-  sys.exit()
-
-# Now the configuration is in config 
-# print repr(config)
-# sys.exit()
-
 class MuninClient(LineReceiver):
     _host = None
     _f_parent = None
@@ -296,6 +271,8 @@ def main():
     if ( not config.has_key('bind_address') or (config['bind_address'] == '') ):
         print "Missing bind_address parameter in global config"
         sys.exit(-1)
+    if ( config['debug'] ):
+        print "Listening on %(bind_address)s:%(port)s" % config
     reactor.listenTCP(int(config['port']), f, 50, config['bind_address'])
     if ( args.pid_file != '' ):
       try:
@@ -308,10 +285,47 @@ def main():
 
 
 parser = argparse.ArgumentParser(description='Munin relay.')
-parser.add_argument('--debug', action='store_true', default=False, dest='debugme', help='do not detach process')
-parser.add_argument('--pid', action='store', default='', dest='pid_file', help='Specify a PID file')
+parser.add_argument('--debug',  action='store_true', default=False, dest='debugme',  help='Do not detach process')
+parser.add_argument('--pid',    action='store',      default='',    dest='pid_file', help='Specify a PID file')
+parser.add_argument('--config', action='store',      default=None,  dest='configfile', help='Path to configuration file')
 
 args=parser.parse_args()
+
+# Read the configuration file
+ccfg = SafeConfigParser()
+if ( args.configfile != None ):
+    configpaths = [ args.configfile ]
+else:
+    # Defaults locations
+    configpaths = [ 'munin-relay.ini', '/etc/munin/munin-relay.ini']
+if ( args.debugme ):
+    print "Reading configurations from", configpaths
+ccfg.read(configpaths)
+
+for section_name in ccfg.sections():
+  if ( section_name == 'global' ):
+    for i in ['allowed_ip', 'port', 'bind_address']:
+      if i in ccfg.options(section_name):
+        if ( i in ['allowed_ip'] ):
+          config[i] = ccfg.get('global', i).split(',')
+        else:
+          config[i] = ccfg.get('global', i)
+  else:
+    tmp = { 'port': '4949' }
+    for op in ccfg.options(section_name):
+      tmp[op]=ccfg.get(section_name,op)
+    config['hosts'].append( tmp )
+
+config['debug'] = args.debugme
+
+if ( not config.has_key('allowed_ip') or len(config['allowed_ip']) == 0 ):
+  print "Problem with configuration files, no one is allowed"
+  sys.exit()
+
+# Now the configuration is in config 
+# print repr(config)
+# sys.exit()
+
 
 # Background process
 if (args.debugme == True):
