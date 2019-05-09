@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# vim: tabstop=4 expandtab shiftwidth=4
+# vim: set tabstop=4 expandtab shiftwidth=4:
 
 # loosely based on Twisted Matrix Laboratories examples
 
@@ -70,6 +70,7 @@ class MuninRelay(LineReceiver):
     _clients = {}
     _c_factory = None
     _last_command = {}
+    _last_command_for = {}
     _host2hash = {}
     _hash2host = {}
     _cap_multigraph = False
@@ -101,6 +102,7 @@ class MuninRelay(LineReceiver):
         for h in self.factory.cfg['hosts']:
             if (h['hostname'] == host):
                 self._last_command[h['hostname']] = None
+                self._last_command_for[h['hostname']] = None
                 m = md5.new(h['hostname'])
                 hash_v = m.hexdigest()
                 del m
@@ -110,6 +112,7 @@ class MuninRelay(LineReceiver):
 
     def _send_line(self, hostname, line, arg=''):
         self._last_command[hostname] = line
+        self._last_command_for[hostname] = self
         if (arg != ''):
             line = line + ' ' + arg
         print "send line : '" + line + "' to " + hostname
@@ -121,7 +124,12 @@ class MuninRelay(LineReceiver):
     def _handle_line(self, host, line):
         line = line.rstrip()
         hostname = host['hostname']
-        print "handle line '" + line + "' for " + hostname
+        # The response beeing read can be for a client different of the "parent" of the object
+        client = self._last_command_for[hostname]
+        if (client == None):
+            client = self
+        print "handle line '" + line + "' for " + hostname, "client is", client._client
+        print "Last command for", hostname, "is", self._last_command[hostname]
 
         if (line == ''):
             print "empty line, do nothing - handle line"
@@ -145,26 +153,33 @@ class MuninRelay(LineReceiver):
 
         if (self._last_command[hostname] == 'list'):
             self._last_command[hostname] = None
+            self._last_command_for[hostname] = None
             retline = ''
             hash_v = self._host2hash[hostname]
             for plugin in line.split(' '):
                 retline += hash_v + '_' + plugin + ' '
-            self.sendLine(retline)
+            print "list for", hostname, "result:", retline+'<<'
+            #self.sendLine(retline)
+            client.sendLine(retline)
             return
             
         if (self._last_command[hostname] == 'fetch'):
             if (line == '.'):
                 print "end of fetch"
                 self._last_command[hostname] = None
-            self.sendLine(line)
+                self._last_command_for[hostname] = None
+            #self.sendLine(line)
+            client.sendLine(line)
             return
             
         if (self._last_command[hostname] == 'config'):
             if (line == '.'):
                 print "end of config"
                 self._last_command[hostname] = None
+                self._last_command_for[hostname] = None
             print "sending '" + line + "'"
-            self.sendLine(line)
+            #self.sendLine(line)
+            client.sendLine(line)
             return
             
 
@@ -176,6 +191,7 @@ class MuninRelay(LineReceiver):
         """
         # print dir(self.transport)
         print "Connection received from : ", self.transport.client[0]
+        self._client = self.transport.client
         if ( not self.transport.client[0] in self.factory.cfg['allowed_ip'] ):
           self.sendLine("# " + self.transport.client[0] + " is not allowed")
           self.transport.loseConnection()
