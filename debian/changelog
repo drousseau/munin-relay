@@ -1,3 +1,9 @@
+munin-relay (0.0.3) experimental; urgency=low
+
+  * parallel connections to same host problem fixed
+
+ -- Dominique Rousseau <d.rousseau@nnx.com>  Thu, 9 May 2019 15:36:00 +0200
+
 munin-relay (0.0.2) experimental; urgency=low
 
   * dependencies update
