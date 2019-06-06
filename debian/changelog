@@ -1,3 +1,9 @@
+munin-relay (0.0.3a) experimental; urgency=low
+
+  * correction of cap multigraph
+
+ -- Dominique Rousseau <d.rousseau@nnx.com>  Thu, 6 Jun 2019 11:02:00 +0200
+
 munin-relay (0.0.3) experimental; urgency=low
 
   * parallel connections to same host problem fixed

@@ -65,7 +65,7 @@ class MuninRelay(LineReceiver):
     _re_config = re.compile("^config +([0-9a-f]{32})_(.+) *$", re.I)
     _re_cap = re.compile("^cap +(.+) *$", re.I)
     _re_comment = re.compile("^#")
-    _re_greeting = re.compile("^# (lrrd|munin) (.+) on (.+)$", re.I)
+    _re_greeting = re.compile("^# (lrrd|munin) (.+) (on|at) (.+)$", re.I)
 
     _clients = {}
     _c_factory = None
@@ -139,7 +139,7 @@ class MuninRelay(LineReceiver):
         if (m_greeting != None):
             if (self._cap_multigraph):
                 # announce cap multigraph, if we received it from server
-                self._clients[hostname].snedLine("cap multigraph")
+                self._clients[hostname].sendLine("cap multigraph")
             return
         m_comment = self._re_comment.match(line)
         if (m_comment != None):
