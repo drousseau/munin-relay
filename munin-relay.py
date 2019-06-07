@@ -14,6 +14,7 @@ import argparse
 from twisted.internet.protocol import Factory
 from twisted.internet.protocol import ClientFactory
 from twisted.protocols.basic import LineReceiver
+from twisted.internet.task import LoopingCall
 from twisted.internet import reactor
 from ConfigParser import SafeConfigParser
 
@@ -28,6 +29,7 @@ config = {
 class MuninClient(LineReceiver):
     _host = None
     _f_parent = None
+    _last_activity = 0
 
     def connectionMade(self):
         self.delimiter = "\n"
@@ -36,6 +38,7 @@ class MuninClient(LineReceiver):
         print "addr:", self.transport.addr
         client = self.transport.addr
         self._f_parent = self.factory._parent
+        self._last_activity = time.time()
         for h in self._f_parent.factory.cfg['hosts']:
             if ( (h['hostaddr'] == client[0]) and (int(h['port']) == client[1]) ):
                 self._host = h
@@ -47,9 +50,13 @@ class MuninClient(LineReceiver):
         del self._f_parent._clients[self._host['hostname']]
 
     def lineReceived(self, l):
+        self._last_activity = time.time()
         print "client data receive : ", l
         l = l.replace("\r", "")
         self._f_parent._handle_line(self._host, l)
+
+    def _disconnect(self):
+        self.transport.loseConnection()
 
 class MuninClientFactory(ClientFactory):
     protocol = MuninClient
@@ -63,7 +70,8 @@ class MuninRelay(LineReceiver):
     _re_list = re.compile("^list +(.+) *$", re.I)
     _re_fetch = re.compile("^fetch +([0-9a-f]{32})_(.+) *$", re.I)
     _re_config = re.compile("^config +([0-9a-f]{32})_(.+) *$", re.I)
-    _re_cap = re.compile("^cap +(.+) *$", re.I)
+    _re_cap = re.compile("^cap +.+$", re.I)
+    _re_cap_names = re.compile(" +(\w+)", re.I)
     _re_comment = re.compile("^#")
     _re_greeting = re.compile("^# (lrrd|munin) (.+) (on|at) (.+)$", re.I)
 
@@ -192,12 +200,16 @@ class MuninRelay(LineReceiver):
         # print dir(self.transport)
         print "Connection received from : ", self.transport.client[0]
         self._client = self.transport.client
+        self.factory._client_connected(self)
         if ( not self.transport.client[0] in self.factory.cfg['allowed_ip'] ):
           self.sendLine("# " + self.transport.client[0] + " is not allowed")
           self.transport.loseConnection()
 
         self.delimiter = "\x0a"
         self.sendLine("# munin node at munin-relay")
+
+    def connectionLost(self, reason):
+        self.factory._client_disconnected(self)
 
     def _do_line(self, data):
         if (data == 'nodes'):
@@ -229,11 +241,12 @@ class MuninRelay(LineReceiver):
 #                self.sendLine("# fetch list for " + m_list.group(1))
 
             if (m_cap != None):
-                cap_name = m_cap.group(1)
-                print "cap : '" + cap_name + "'"
-                if (cap_name == 'multigraph'):
-                    self._cap_multigraph = True
-                    self.sendLine("cap multigraph")
+                cap_names = self._re_cap_names.findall(data)
+                for cap_name in cap_names:
+                    print "cap : '" + cap_name + "'"
+                    if (cap_name == 'multigraph'):
+                        self._cap_multigraph = True
+                        self.sendLine("cap multigraph")
                 else:
                     self.sendLine(self._help_line)
 
@@ -277,7 +290,33 @@ class MuninRelayFactory(Factory):
 
     def __init__(self, config):
         self.cfg = config
+        self._instances = []
+
+    def _client_connected(self, instance):
+        print "One client connected", instance
+        self._instances.append(instance)
             
+    def _client_disconnected(self, instance):
+        print "One client disconnected", instance
+        try:
+            self._instances.remove(instance)
+        except:
+            pass
+
+    def clean_old_cnx(self):
+        print "Clean old connections"
+        now = time.time()
+        for i in self._instances:
+            for k in i._clients.keys():
+                c = i._clients[k]
+                #print c._last_activity
+                # inactivity 10s
+                if ( (c._last_activity + 10) < now ):
+                    print k, "looks old"
+                    c._disconnect()
+
+def old_connections_callback(fact):
+    fact.clean_old_cnx()
 
 def main():
     f = MuninRelayFactory(config)
@@ -297,6 +336,8 @@ def main():
         ff.close()
       except Exception, e:
         print "Error writing in %s :" % args.pid_file, e
+    lc = LoopingCall(old_connections_callback, (f))
+    lc.start(1)
     reactor.run()
 
 

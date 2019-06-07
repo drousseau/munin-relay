@@ -1,3 +1,10 @@
+munin-relay (0.0.4) experimental; urgency=low
+
+  * detection of cap multigraph when multiple "cap" values
+  * timeout on outgoing connections in case of inactivity
+
+ -- Dominique Rousseau <d.rousseau@nnx.com>  Fri, 7 Jun 2019 15:39:00 +0200
+
 munin-relay (0.0.3a) experimental; urgency=low
 
   * correction of cap multigraph
