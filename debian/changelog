@@ -1,3 +1,9 @@
+munin-relay (0.0.4a) experimental; urgency=low
+
+  * correct "cap multigraph"
+
+ -- Dominique Rousseau <d.rousseau@nnx.com>  Thu, 13 Jun 2019 15:59:00 +0200
+
 munin-relay (0.0.4) experimental; urgency=low
 
   * detection of cap multigraph when multiple "cap" values

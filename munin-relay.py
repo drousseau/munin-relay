@@ -230,7 +230,8 @@ class MuninRelay(LineReceiver):
             m_fetch = self._re_fetch.match(data)
             m_config = self._re_config.match(data)
             m_cap = self._re_cap.match(data)
-            print m_list, m_fetch, m_config
+            print m_list, m_fetch, m_config, m_cap
+            done = False
             if (m_list != None):
                 hostname = m_list.group(1)
                 
@@ -239,6 +240,7 @@ class MuninRelay(LineReceiver):
                     self._open_host(hostname)
                 reactor.callLater (0.1, self._send_line, hostname, 'list')
 #                self.sendLine("# fetch list for " + m_list.group(1))
+                done = True
 
             if (m_cap != None):
                 cap_names = self._re_cap_names.findall(data)
@@ -247,8 +249,7 @@ class MuninRelay(LineReceiver):
                     if (cap_name == 'multigraph'):
                         self._cap_multigraph = True
                         self.sendLine("cap multigraph")
-                else:
-                    self.sendLine(self._help_line)
+                done = True
 
             if (m_fetch != None):
                 hosthash = m_fetch.group(1)
@@ -260,6 +261,7 @@ class MuninRelay(LineReceiver):
                         self._open_host(hostname)
                     reactor.callLater (0.1, self._send_line, hostname, 'fetch', plugin)
 #                    self.sendLine("# fetch plugin " + plugin + " for " + hostname)
+                done = True
 
             if (m_config != None):
                 hosthash = m_config.group(1)
@@ -271,6 +273,11 @@ class MuninRelay(LineReceiver):
                         self._open_host(hostname)
                     reactor.callLater (0.1, self._send_line, hostname, 'config', plugin)
 #                    self.sendLine("# config plugin " + plugin + " for " + hostname)
+                done = True
+
+            if ( not done ):
+                self.sendLine(self._help_line)
+                print "unrecognized command received : ", data
 
     def dataReceived(self, data):
         print "received : ", data
