@@ -1,0 +1,69 @@
+#! /bin/bash
+#
+### BEGIN INIT INFO
+# Provides:          munin-relay
+# Required-Start:    $local_fs $remote_fs $syslog $named $network $time
+# Required-Stop:     $local_fs $remote_fs $syslog $named $network
+# Should-Start:
+# Should-Stop:
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Start/Stop the munin relay daemon
+### END INIT INFO
+
+
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+DAEMON=/usr/bin/munin-relay
+NAME=munin-relay
+DESC=munin-relay
+PIDFILE=/var/run/munin-relay.pid
+
+test -x $DAEMON || exit 0
+
+if ! [ -x "/lib/lsb/init-functions" ]; then
+        . /lib/lsb/init-functions
+else
+        echo "E: /lib/lsb/init-functions not found, lsb-base (>= 3.0-6) needed"
+        exit 1
+fi
+
+set -e
+
+is_not_alive() {
+  pid="$( test -e "$PIDFILE" && cat "$PIDFILE")"
+  if [ ! -z "$pid" ] ; then
+    if [ -d /proc/$pid ] ; then
+      grep -q $DAEMON /proc/$pid/cmdline && return 0
+    fi
+  fi
+  return 1
+}
+
+case "$1" in
+  start)
+        log_daemon_msg "Starting $DESC" "$NAME"
+        start-stop-daemon --start --user nobody --group nogroup --name $NAME --exec $DAEMON -- --pid $PIDFILE
+        log_end_msg $?
+        ;;
+  stop)
+        if ( ! is_not_alive ) ; then
+          echo "Seems to not be running"
+          exit 0
+        fi
+        log_daemon_msg "Stopping $DESC" "$NAME"
+        start-stop-daemon --stop --pidfile $PIDFILE -m $NAME --quiet
+        log_end_msg $?
+        ;;
+  restart)
+        $0 stop
+        sleep 1
+        $0 start
+        ;;
+  *)
+        log_failure_msg "Usage: $N {start|stop|restart}"
+        exit 1
+        ;;
+esac
+
+exit 0
+
