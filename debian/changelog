@@ -1,8 +1,8 @@
-munin-relay (0.0.4a) experimental; urgency=low
+munin-relay (0.1.0) experimental; urgency=low
 
-  * correct "cap multigraph"
+  * updated to python 3
 
- -- Dominique Rousseau <d.rousseau@nnx.com>  Thu, 13 Jun 2019 15:59:00 +0200
+ -- Elliot Vantorre <e.vantorre@nnx.com>  Mon, 20 Nov 2023 15:51:37 +0100
 
 munin-relay (0.0.4) experimental; urgency=low
 
