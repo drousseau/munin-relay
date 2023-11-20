@@ -1,5 +1,5 @@
 # README #
 
-Import depuis le depot Mércurial
+Import depuis le depot Bitbucket ( anciennement Mércurial )
 
-Documentation : https://bitbucket.org/domi/munin-relay/wiki/Home
+Historique : https://bitbucket.org/domi/munin-relay/
