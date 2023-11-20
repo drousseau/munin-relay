@@ -1,22 +1,27 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # vim: set tabstop=4 expandtab shiftwidth=4:
 
 # loosely based on Twisted Matrix Laboratories examples
 
 
+from __future__ import print_function
+from future import standard_library
+standard_library.install_aliases()
+from builtins import str
+from future.utils import raise_
 import os, sys
 import time
 import syslog
 import re
-import md5
-import ConfigParser
+import cryptography
+import configparser
 import argparse
 from twisted.internet.protocol import Factory
 from twisted.internet.protocol import ClientFactory
 from twisted.protocols.basic import LineReceiver
 from twisted.internet.task import LoopingCall
 from twisted.internet import reactor
-from ConfigParser import SafeConfigParser
+from configparser import ConfigParser
 
 # Default conf
 config = {
@@ -33,9 +38,9 @@ class MuninClient(LineReceiver):
 
     def connectionMade(self):
         self.delimiter = "\n"
-        print "new connect : ", dir(self)
-        print dir(self.transport)
-        print "addr:", self.transport.addr
+        print("new connect : ", dir(self))
+        print(dir(self.transport))
+        print("addr:", self.transport.addr)
         client = self.transport.addr
         self._f_parent = self.factory._parent
         self._last_activity = time.time()
@@ -45,13 +50,13 @@ class MuninClient(LineReceiver):
                 self._f_parent._clients[h['hostname']] = self
 
     def connectionLost(self, reason):
-        print "lost connect : ", dir(self), reason
+        print("lost connect : ", dir(self), reason)
         client = self.transport.addr
         del self._f_parent._clients[self._host['hostname']]
 
     def lineReceived(self, l):
         self._last_activity = time.time()
-        print "client data receive : ", l
+        print("client data receive : ", l)
         l = l.replace("\r", "")
         self._f_parent._handle_line(self._host, l)
 
@@ -63,8 +68,8 @@ class MuninClientFactory(ClientFactory):
     _parent = None
 
     def clientConnectionFailed(self, connector, reason):
-        print 'connection failed:', reason.getErrorMessage()
-        print dir(connector)
+        print('connection failed:', reason.getErrorMessage())
+        print(dir(connector))
 
 class MuninRelay(LineReceiver):
     _re_list = re.compile("^list +(.+) *$", re.I)
@@ -86,11 +91,11 @@ class MuninRelay(LineReceiver):
 
     def _get_host_from_hash(self, h):
         hostname = ''
-        if (self._hash2host.has_key(h)):
+        if (h in self._hash2host):
             hostname = self._hash2host[h]
         else:
             for host in self.factory.cfg['hosts']:
-                print "h2h : ", host['hostname']
+                print("h2h : ", host['hostname'])
                 m = md5.new(host['hostname'])
                 hash_v = m.hexdigest()
                 del m
@@ -101,8 +106,8 @@ class MuninRelay(LineReceiver):
         return hostname
         
     def _open_host(self, host):
-        print "_open_host:", host, self._clients
-        if (self._clients.has_key(host)):
+        print("_open_host:", host, self._clients)
+        if (host in self._clients):
             return
         if (self._c_factory == None):
             self._c_factory = MuninClientFactory()
@@ -123,8 +128,8 @@ class MuninRelay(LineReceiver):
         self._last_command_for[hostname] = self
         if (arg != ''):
             line = line + ' ' + arg
-        print "send line : '" + line + "' to " + hostname
-        if ( not self._clients.has_key(hostname)):
+        print("send line : '" + line + "' to " + hostname)
+        if ( hostname not in self._clients):
           self.sendLine('# error: unknow host ' + hostname)
           return
         self._clients[hostname].sendLine(line)
@@ -136,11 +141,11 @@ class MuninRelay(LineReceiver):
         client = self._last_command_for[hostname]
         if (client == None):
             client = self
-        print "handle line '" + line + "' for " + hostname, "client is", client._client
-        print "Last command for", hostname, "is", self._last_command[hostname]
+        print("handle line '" + line + "' for " + hostname, "client is", client._client)
+        print("Last command for", hostname, "is", self._last_command[hostname])
 
         if (line == ''):
-            print "empty line, do nothing - handle line"
+            print("empty line, do nothing - handle line")
             return
 
         m_greeting = self._re_greeting.match(line)
@@ -166,14 +171,14 @@ class MuninRelay(LineReceiver):
             hash_v = self._host2hash[hostname]
             for plugin in line.split(' '):
                 retline += hash_v + '_' + plugin + ' '
-            print "list for", hostname, "result:", retline+'<<'
+            print("list for", hostname, "result:", retline+'<<')
             #self.sendLine(retline)
             client.sendLine(retline)
             return
             
         if (self._last_command[hostname] == 'fetch'):
             if (line == '.'):
-                print "end of fetch"
+                print("end of fetch")
                 self._last_command[hostname] = None
                 self._last_command_for[hostname] = None
             #self.sendLine(line)
@@ -182,10 +187,10 @@ class MuninRelay(LineReceiver):
             
         if (self._last_command[hostname] == 'config'):
             if (line == '.'):
-                print "end of config"
+                print("end of config")
                 self._last_command[hostname] = None
                 self._last_command_for[hostname] = None
-            print "sending '" + line + "'"
+            print("sending '" + line + "'")
             #self.sendLine(line)
             client.sendLine(line)
             return
@@ -198,7 +203,7 @@ class MuninRelay(LineReceiver):
         Handle some ACL checks, and log connection
         """
         # print dir(self.transport)
-        print "Connection received from : ", self.transport.client[0]
+        print("Connection received from : ", self.transport.client[0])
         self._client = self.transport.client
         self.factory._client_connected(self)
         if ( not self.transport.client[0] in self.factory.cfg['allowed_ip'] ):
@@ -224,19 +229,19 @@ class MuninRelay(LineReceiver):
         elif (data == 'quit'):
             self.transport.loseConnection()
         elif (data == ''):
-            print "empty line, do nothing - do line"
+            print("empty line, do nothing - do line")
         else:
             m_list = self._re_list.match(data)
             m_fetch = self._re_fetch.match(data)
             m_config = self._re_config.match(data)
             m_cap = self._re_cap.match(data)
-            print m_list, m_fetch, m_config, m_cap
+            print(m_list, m_fetch, m_config, m_cap)
             done = False
             if (m_list != None):
                 hostname = m_list.group(1)
                 
 
-                if ( not (self._clients.has_key(hostname)) ): # Socket exist ?
+                if ( not (hostname in self._clients) ): # Socket exist ?
                     self._open_host(hostname)
                 reactor.callLater (0.1, self._send_line, hostname, 'list')
 #                self.sendLine("# fetch list for " + m_list.group(1))
@@ -245,7 +250,7 @@ class MuninRelay(LineReceiver):
             if (m_cap != None):
                 cap_names = self._re_cap_names.findall(data)
                 for cap_name in cap_names:
-                    print "cap : '" + cap_name + "'"
+                    print("cap : '" + cap_name + "'")
                     if (cap_name == 'multigraph'):
                         self._cap_multigraph = True
                         self.sendLine("cap multigraph")
@@ -254,10 +259,10 @@ class MuninRelay(LineReceiver):
             if (m_fetch != None):
                 hosthash = m_fetch.group(1)
                 plugin = m_fetch.group(2)
-                print "fetch " + hosthash + " " + plugin
+                print("fetch " + hosthash + " " + plugin)
                 hostname = self._get_host_from_hash(hosthash)
                 if (hostname != ''):
-                    if ( not (self._clients.has_key(hostname)) ):
+                    if ( not (hostname in self._clients) ):
                         self._open_host(hostname)
                     reactor.callLater (0.1, self._send_line, hostname, 'fetch', plugin)
 #                    self.sendLine("# fetch plugin " + plugin + " for " + hostname)
@@ -266,10 +271,10 @@ class MuninRelay(LineReceiver):
             if (m_config != None):
                 hosthash = m_config.group(1)
                 plugin = m_config.group(2)
-                print "config " + hosthash + " " + plugin
+                print("config " + hosthash + " " + plugin)
                 hostname = self._get_host_from_hash(hosthash)
                 if (hostname != ''):
-                    if ( not (self._clients.has_key(hostname)) ):
+                    if ( not (hostname in self._clients) ):
                         self._open_host(hostname)
                     reactor.callLater (0.1, self._send_line, hostname, 'config', plugin)
 #                    self.sendLine("# config plugin " + plugin + " for " + hostname)
@@ -277,10 +282,10 @@ class MuninRelay(LineReceiver):
 
             if ( not done ):
                 self.sendLine(self._help_line)
-                print "unrecognized command received : ", data
+                print("unrecognized command received : ", data)
 
     def dataReceived(self, data):
-        print "received : ", data
+        print("received : ", data)
         data = data.replace("\r\n", "\n")
         data = data.replace("\r", "\n")
         data = data.replace("\n\n", "\n")
@@ -300,26 +305,26 @@ class MuninRelayFactory(Factory):
         self._instances = []
 
     def _client_connected(self, instance):
-        print "One client connected", instance
+        print("One client connected", instance)
         self._instances.append(instance)
             
     def _client_disconnected(self, instance):
-        print "One client disconnected", instance
+        print("One client disconnected", instance)
         try:
             self._instances.remove(instance)
         except:
             pass
 
     def clean_old_cnx(self):
-        print "Clean old connections"
+        print("Clean old connections")
         now = time.time()
         for i in self._instances:
-            for k in i._clients.keys():
+            for k in list(i._clients.keys()):
                 c = i._clients[k]
                 #print c._last_activity
                 # inactivity 10s
                 if ( (c._last_activity + 10) < now ):
-                    print k, "looks old"
+                    print(k, "looks old")
                     c._disconnect()
 
 def old_connections_callback(fact):
@@ -327,22 +332,22 @@ def old_connections_callback(fact):
 
 def main():
     f = MuninRelayFactory(config)
-    if ( not config.has_key('port') or (config['port'] == '') ):
-        print "Missing port parameter in global config"
+    if ( 'port' not in config or (config['port'] == '') ):
+        print("Missing port parameter in global config")
         sys.exit(-1)
-    if ( not config.has_key('bind_address') or (config['bind_address'] == '') ):
-        print "Missing bind_address parameter in global config"
+    if ( 'bind_address' not in config or (config['bind_address'] == '') ):
+        print("Missing bind_address parameter in global config")
         sys.exit(-1)
     if ( config['debug'] ):
-        print "Listening on %(bind_address)s:%(port)s" % config
+        print("Listening on %(bind_address)s:%(port)s" % config)
     reactor.listenTCP(int(config['port']), f, 50, config['bind_address'])
     if ( args.pid_file != '' ):
       try:
         ff = open(args.pid_file, "w")
         ff.write(str(os.getpid()))
         ff.close()
-      except Exception, e:
-        print "Error writing in %s :" % args.pid_file, e
+      except Exception as e:
+        print("Error writing in %s :" % args.pid_file, e)
     lc = LoopingCall(old_connections_callback, (f))
     lc.start(1)
     reactor.run()
@@ -356,14 +361,14 @@ parser.add_argument('--config', action='store',      default=None,  dest='config
 args=parser.parse_args()
 
 # Read the configuration file
-ccfg = SafeConfigParser()
+ccfg = ConfigParser()
 if ( args.configfile != None ):
     configpaths = [ args.configfile ]
 else:
     # Defaults locations
     configpaths = [ 'munin-relay.ini', '/etc/munin/munin-relay.ini']
 if ( args.debugme ):
-    print "Reading configurations from", configpaths
+    print("Reading configurations from", configpaths)
 ccfg.read(configpaths)
 
 for section_name in ccfg.sections():
@@ -382,8 +387,8 @@ for section_name in ccfg.sections():
 
 config['debug'] = args.debugme
 
-if ( not config.has_key('allowed_ip') or len(config['allowed_ip']) == 0 ):
-  print "Problem with configuration files, no one is allowed"
+if ( 'allowed_ip' not in config or len(config['allowed_ip']) == 0 ):
+  print("Problem with configuration files, no one is allowed")
   sys.exit()
 
 # Now the configuration is in config 
@@ -393,16 +398,16 @@ if ( not config.has_key('allowed_ip') or len(config['allowed_ip']) == 0 ):
 
 # Background process
 if (args.debugme == True):
-  print "Debug mode: do not detach"
+  print("Debug mode: do not detach")
   main()
   sys.exit (0)
 else:
   try:
       try:
           pid = os.fork()
-      except OSError, e:
+      except OSError as e:
           syslog.syslog ("Failed to daemonize")
-          raise Exception, "%s [%d]" % (e.strerror, e.errno)
+          raise_(Exception, "%s [%d]" % (e.strerror, e.errno))
 
       orig_stderr = sys.stderr
       if (pid == 0):  # the daemon child
@@ -413,14 +418,14 @@ else:
            sys.stdout = null
            sys.stderr = null
            main()
-        except Exception, e:
-          print >>orig_stderr, "Error: failed to launch munin-relay :", e
+        except Exception as e:
+          print("Error: failed to launch munin-relay :", e, file=orig_stderr)
           sys.exit (2)
       else:       # the parent
         syslog.syslog ("Launch munin-relay #"+str(pid))
         sys.exit (0)
 
   except KeyboardInterrupt:
-      print "Interrupt"
+      print("Interrupt")
       sys.exit (0)
 

@@ -1,18 +1,21 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # vim: tabstop=4 expandtab shiftwidth=4
 
 # loosely based on Twisted Matrix Laboratories examples
 
+from __future__ import print_function
+from future import standard_library
+standard_library.install_aliases()
 import re
 import time
 import sys
-import md5
-import ConfigParser
+import cryptography
+import configparser
 from twisted.internet.protocol import Factory
 from twisted.internet.protocol import ClientFactory
 from twisted.protocols.basic import LineReceiver
 from twisted.internet import reactor
-from ConfigParser import SafeConfigParser
+from configparser import ConfigParser
 
 # Default conf
 config = {
@@ -23,7 +26,7 @@ config = {
  }
 
 # Read the configuration file
-ccfg = SafeConfigParser()
+ccfg = ConfigParser()
 ccfg.read([ 'munin-relay.ini', '/etc/munin/munin-relay.ini'])
 for section_name in ccfg.sections():
   if ( section_name == 'global' ):
@@ -39,15 +42,15 @@ for section_name in ccfg.sections():
       tmp[op]=ccfg.get(section_name,op)
     config['hosts'].append( tmp )
 
-if ( not config.has_key('allowed_ip') or len(config['allowed_ip']) == 0 ):
-  print "Problem with configuration files, no one is allowed"
+if ( 'allowed_ip' not in config or len(config['allowed_ip']) == 0 ):
+  print("Problem with configuration files, no one is allowed")
   sys.exit()
 
-print "## Add these to your munin configuration"
-print "## on the server running munin-server"
+print("## Add these to your munin configuration")
+print("## on the server running munin-server")
 for h in config['hosts']:
-  print "["+h['hostname']+"]"
-  print "  address " + config['bind_address']
-  print "  use_node_name no"
-  print "  port " + config['port']
-  print ""
+  print("["+h['hostname']+"]")
+  print("  address " + config['bind_address'])
+  print("  use_node_name no")
+  print("  port " + config['port'])
+  print("")
