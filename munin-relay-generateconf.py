@@ -9,7 +9,7 @@ standard_library.install_aliases()
 import re
 import time
 import sys
-import cryptography
+import hashlib
 import configparser
 from twisted.internet.protocol import Factory
 from twisted.internet.protocol import ClientFactory
