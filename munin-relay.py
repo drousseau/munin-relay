@@ -94,7 +94,7 @@ class MuninRelay(LineReceiver):
     _help_line = "# Allowed commands: nodes, list, config, fetch, version or quit"
 
     def sendBytesLine(self, line):
-        return self.transport.write(bytes(line + self.delimiter, 'utf-8'))
+        return self.transport.write(bytes(line + str(self.delimiter), 'utf-8'))
 
     def _get_host_from_hash(self, h):
         hostname = ''
@@ -213,7 +213,7 @@ class MuninRelay(LineReceiver):
         self._client = self.transport.client
         self.factory._client_connected(self)
         if (not self.transport.client[0] in self.factory.cfg['allowed_ip']):
-            self.sendBytesLine("# " + str(self.transport.client[0]) + " is not allowed" + self.delimiter)
+            self.sendBytesLine(str("# ") + str(self.transport.client[0]) + str(" is not allowed"))
             self.transport.loseConnection()
 
         self.delimiter = "\x0a"
