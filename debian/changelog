@@ -1,3 +1,9 @@
+munin-relay (0.1.0.cap) experimental; urgency=low
+
+  * ugly fix multicap
+
+ -- Dominique Rousseau <d.rousseau@nnx.com>  Fri, 28 Jun 2024 15:39:00 +0200
+
 munin-relay (0.1.0) experimental; urgency=low
 
   * updated to python 3
