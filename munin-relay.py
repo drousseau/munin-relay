@@ -62,6 +62,9 @@ class MuninClient(LineReceiver):
         l = l.replace(bytes("\r", 'utf-8'), bytes("", 'utf-8'))
         self._f_parent._handle_line(self._host, l.decode('utf-8'))
 
+    def sendBytesLine(self, line):
+        return self.transport.write(bytes(line + str(self.delimiter), 'utf-8'))
+
     def _disconnect(self):
         self.transport.loseConnection()
 
@@ -91,6 +94,7 @@ class MuninRelay(LineReceiver):
     _host2hash = {}
     _hash2host = {}
     _cap_multigraph = False
+    _cap_sent = False
     _help_line = "# Allowed commands: nodes, list, config, fetch, version or quit"
 
     def sendBytesLine(self, line):
@@ -142,6 +146,7 @@ class MuninRelay(LineReceiver):
         self._clients[hostname].transport.write(bytes(line + self.delimiter, 'utf-8'))
 
     def _handle_line(self, host, line):
+        # Handle a response line from host
         line = line.rstrip()
         hostname = host['hostname']
         # The response beeing read can be for a client different of the "parent" of the object
@@ -159,8 +164,15 @@ class MuninRelay(LineReceiver):
         if (m_greeting != None):
             if (self._cap_multigraph):
                 # announce cap multigraph, if we received it from server
-                self._clients[hostname].sendBytesLine("cap multigraph")
+                # FIXME !!!
+#                if ( not self._cap_sent ):
+                if (True):
+                    print("send cap multigraph to " + hostname)
+                    self._clients[hostname].sendBytesLine("cap multigraph")
+                    #client.sendBytesLine("cap multigraph")
+#                    self._cap_sent = True
             return
+
         m_comment = self._re_comment.match(line)
         if (m_comment != None):
             return
@@ -216,8 +228,10 @@ class MuninRelay(LineReceiver):
             self.sendBytesLine(str("# ") + str(self.transport.client[0]) + str(" is not allowed"))
             self.transport.loseConnection()
 
+        # \x0a = \n ; \x0d = \r
         self.delimiter = "\x0a"
-        self.sendBytesLine("# munin node at munin-relay" + self.delimiter)
+        #self.delimiter = "\x0d"
+        self.sendBytesLine("# munin node at munin-relay")
 
     def connectionLost(self, reason):
         self.factory._client_disconnected(self)
@@ -247,9 +261,12 @@ class MuninRelay(LineReceiver):
             if (m_list != None):
                 hostname = m_list.group(1)
 
+                send_list_delay = 0.1
                 if (not (hostname in self._clients)):  # Socket exist ?
                     self._open_host(hostname)
-                reactor.callLater(0.1, self._send_line, hostname, 'list')
+                    # do not send too fast, we need to get the banner if connecting
+                    send_list_delay = 2
+                reactor.callLater(send_list_delay, self._send_line, hostname, 'list')
                 #                self.sendLine("# fetch list for " + m_list.group(1))
                 done = True
 
@@ -260,6 +277,7 @@ class MuninRelay(LineReceiver):
                     if (cap_name == 'multigraph'):
                         self._cap_multigraph = True
                         self.sendBytesLine("cap multigraph")
+                        self._cap_sent = True
                 done = True
 
             if (m_fetch != None):
@@ -329,7 +347,8 @@ class MuninRelayFactory(Factory):
                 c = i._clients[k]
                 # print c._last_activity
                 # inactivity 10s
-                if ((c._last_activity + 10) < now):
+                ##if ((c._last_activity + 10) < now):
+                if ((c._last_activity + 600) < now):
                     print(k, "looks old")
                     c._disconnect()
 
